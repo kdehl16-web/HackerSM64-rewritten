@@ -400,7 +400,6 @@ void cs_update_framebuffer(void) {
 
     // Swap between the two framebuffers:
     sCSFBRenderIndex = !sCSFBRenderIndex;
-
     sRenderingFramebuffer = sCSFB[sCSFBRenderIndex];
 
     osWritebackDCacheAll();

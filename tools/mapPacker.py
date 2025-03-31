@@ -1,13 +1,25 @@
 import sys, os, struct, subprocess
 
+
+# global variables:
 includeSegmented = True
 maxSymbolSize = 0xFFFFF
+
+
+# file path args:
+path_sm64_prelim_elf = sys.argv[1] # sm64_prelim.elf
+path_addr_bin        = sys.argv[2] # addr.bin
+path_name_bin        = sys.argv[3] # name.bin
+path_debug_map_txt   = sys.argv[4] # debug_map.txt
+
 
 class MapSymbol():
 	def __init__(self, addr, size, name, type, errc):
 		self.addr = addr # Symbol address (32 bits).
+		# self.segment = ((addr >> 24) & 0xFF) # 0xXX000000
+		# self.lowAddr = (addr & 0xFFFFFF) # 0x00XXXXXX
 		self.size = size # Symbol size (32 bits).
-		self.name = name # Symbol name offset (32 bits).
+		self.name = name # Symbol name (string).
 		self.strlen = ((len(name) + 4) & (~3)) # Symbol name length (16 bits).
 		self.type = type # Symbol type (8 bits).
 		self.errc = errc # Error char (8 bits).
@@ -22,7 +34,7 @@ structDef = ">LLLHBB"
 
 symNames = []
 
-proc = subprocess.Popen(["nm", "--print-size", "--numeric-sort", sys.argv[1]], stdout=subprocess.PIPE)
+proc = subprocess.Popen(["nm", "--print-size", "--numeric-sort", path_sm64_prelim_elf], stdout=subprocess.PIPE)
 
 symbols = proc.communicate()[0].decode('ascii').split("\n")
 
@@ -69,24 +81,25 @@ for line in symbols:
 			symNames.append(MapSymbol(addr, size, name, type, errc))
 
 
-f1 = open(sys.argv[2], "wb+") # addr.bin
-f2 = open(sys.argv[3], "wb+") # name.bin
+addrFile = open(path_addr_bin, "wb+") # addr.bin
+nameFile = open(path_name_bin, "wb+") # name.bin
 
-symNames.sort(key=lambda x: x.addr) # (x.addr & 0xFFFFFF) to sort segmented addresses
+symNames.sort(key=lambda x: x.addr) # TODO: x.lowAddr to sort segmented addresses
 
-off = 0
+nameOffset = 0 # Symbol name offset (32 bits).
 for x in symNames:
-	f1.write(struct.pack(structDef, x.addr, x.size, off, len(x.name), x.type, x.errc))
-	f2.write(struct.pack(">%ds" % x.strlen, bytes(x.name, encoding="ascii")))
-	off += x.strlen
+	addrFile.write(struct.pack(structDef, x.addr, x.size, nameOffset, len(x.name), x.type, x.errc))
+	nameFile.write(struct.pack((">%ds" % x.strlen), bytes(x.name, encoding="ascii")))
+	nameOffset += x.strlen
 
-f1.close()
-f2.close()
+addrFile.close()
+nameFile.close()
 
-# Get sizes for linkerscript.
-with open(sys.argv[4], "w+") as f:
-	addr_size = os.path.getsize(sys.argv[2])
-	name_size = os.path.getsize(sys.argv[3])
+
+# Get sizes for linkerscript:
+with open(path_debug_map_txt, "w+") as f:
+	addr_size = os.path.getsize(path_addr_bin)
+	name_size = os.path.getsize(path_name_bin)
 	f.write("DEBUG_MAP_DATA_ADDR_SIZE = 0x%X;\nDEBUG_MAP_DATA_NAME_SIZE = 0x%x;\nDEBUG_MAP_DATA_SIZE = 0x%X;" % (addr_size, name_size, (addr_size + name_size)))
 
 # print('\n'.join([str(hex(x.addr)) + " " + x.name for x in symNames]))
