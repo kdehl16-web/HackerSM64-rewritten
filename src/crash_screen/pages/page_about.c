@@ -508,7 +508,7 @@ void cs_print_about_entry(ScreenCoord_u32 y, s16 groupID, s16 entryID) {
             cs_draw_divider_translucent((y - 2) + TEXT_HEIGHT(1));
             break;
         case CS_ABOUT_ENTRY_TYPE_TITLE:
-            if ((entry->desc != NULL) && (entry->info != NULL)) {
+            if ((entry->desc != NULL)/* && (entry->info != NULL)*/) {
                 gCSDefaultPrintColor = COLOR_RGBA32_CRASH_PAGE_NAME;
                 cs_print(TEXT_X((CRASH_SCREEN_NUM_CHARS_X / 2) - (((strlen(entry->desc) + STRLEN(" ") + strlen(entry->info)) / 2))), y,
                     "%s %s", entry->desc, entry->info
@@ -550,17 +550,17 @@ void cs_print_about_entry(ScreenCoord_u32 y, s16 groupID, s16 entryID) {
             if (entry->desc != NULL) {
                 cs_print(TEXT_X(section_indent), y, "%s:", entry->desc);
             }
-            if (entry->info != NULL) {
+            // if (entry->info != NULL) {
                 gCSDefaultPrintColor = COLOR_RGBA32_LIGHT_GRAY;
                 cs_print(TEXT_X(section_indent + 16), y, entry->info);
-            }
+            // }
             break;
         default: // CS_ABOUT_ENTRY_TYPE_LONG_N
-            if (entry->info != NULL) {
+            // if (entry->info != NULL) {
                 u32 logInfoBufferIndex = (entry->type - CS_ABOUT_ENTRY_TYPE_LONG_N);
                 gCSDefaultPrintColor = COLOR_RGBA32_LIGHT_GRAY;
                 cs_print(TEXT_X(section_indent + 1), y, gLongInfoBuffer[logInfoBufferIndex]);
-            }
+            // }
             break;
     }
 
