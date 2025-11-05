@@ -1135,20 +1135,29 @@ void mode_8_directions_camera(struct Camera *c) {
     }
 #ifdef PARALLEL_LAKITU_CAM
     // extra functionality
-    else if (gPlayer1Controller->buttonPressed & U_JPAD) {
-        s8DirModeYawOffset = 0;
-        s8DirModeYawOffset = gMarioState->faceAngle[1] - 0x8000;
+#ifdef PUPPYPRINT_DEBUG
+    if (!sDebugMenu) {
+#endif // PUPPYPRINT_DEBUG    
+#ifndef ENABLE_DEBUG_FREE_MOVE
+        if (gPlayer1Controller->buttonPressed & U_JPAD) {
+            s8DirModeYawOffset = 0;
+            s8DirModeYawOffset = gMarioState->faceAngle[1] - 0x8000;
+        } else if (gPlayer1Controller->buttonPressed & D_JPAD) {
+#else
+        if ((gPlayer1Controller->buttonPressed & D_JPAD) && (gMarioState->action != ACT_DEBUG_FREE_MOVE)) {
+#endif // ENABLE_DEBUG_FREE_MOVE
+            s8DirModeYawOffset = snap_to_45_degrees(s8DirModeYawOffset);
+        }
+        if (gPlayer1Controller->buttonDown & L_JPAD) {
+            s8DirModeYawOffset -= DEGREES(2);
+        } 
+        if (gPlayer1Controller->buttonDown & R_JPAD) {
+            s8DirModeYawOffset += DEGREES(2);
+        }
+#ifdef PUPPYPRINT_DEBUG
     }
-    else if (gPlayer1Controller->buttonDown & L_JPAD) {
-        s8DirModeYawOffset -= DEGREES(2);
-    }
-    else if (gPlayer1Controller->buttonDown & R_JPAD) {
-        s8DirModeYawOffset += DEGREES(2);
-    }
-    else if (gPlayer1Controller->buttonPressed & D_JPAD) {
-        s8DirModeYawOffset = snap_to_45_degrees(s8DirModeYawOffset);
-    }
-#endif
+#endif // PUPPYPRINT_DEBUG
+#endif // PARALLEL_LAKITU_CAM
 
     lakitu_zoom(400.f, 0x900);
     c->nextYaw = update_8_directions_camera(c, c->focus, pos);
