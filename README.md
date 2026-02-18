@@ -4,9 +4,9 @@
 
 HackerSM64 now has a discord server! https://discord.gg/brETAakcXr
 
-This repo requires BOTH a US ROM and a JP ROM in order to build. Place baserom.us.z64 in the repo as usual and ALSO include baserom.jp.z64.
+This repo requires a US ROM in order to build. JP/EU ROMs are optional for some assets.
 
-This repo needs gcc in order to be able to build it. To install it, run `sudo apt install gcc-mips-linux-gnu`
+[How to install everything needed and build HackerSM64](https://github.com/HackerN64/HackerSM64/wiki/Installing-HackerSM64)
 
 This is a fork of the ultrasm64 repo by CrashOveride which includes the following commonly used patches (patches marked with `*` are toggleable in the config files):
 
@@ -118,7 +118,6 @@ Thanks to Frame#5375 and AloXado320 for also helping with silhouette stuff
 - This repo supports a much better implementation of reverb over vanilla's fake echo reverb. Great for caves or eerie levels, as well as just a better audio experience in general. See `audio/synthesis.c` for more details and configuration info. (By ArcticJaguar725) *
 - Fazana's "puppyprint" text engine. *
   - Use `print_small_text` to print normal text. The two last params are aligment and how many characters to print (-1 means PRINT_ALL).
-  - Use `render_multi_image` to draw large texture rectangles consisting of multiple images on the screen.
   - More info in `puppyprint.c`
 - Wiseguy's Farcall TLB mapping allows to store executable code inside uncompressed segments, that can be loaded and ran as needed, instead of it having to be loaded at all times. See `farcall.h` in the include folder for instructions and details.
 - Red Coin Stars now support up to 99 red coins! In addition, multi-area red coin missions can now be created by setting the 2nd behavior paramater of the red coin star to the number of reds required for the star to spawn.
@@ -138,14 +137,6 @@ Thanks to Frame#5375 and AloXado320 for also helping with silhouette stuff
 - Automatic console and emulator detection: Use the `gEmulator` variable to wrap your code in an emulator check.
 - Separate defines for emulator and console black border height.
 - Getting HVQM FMV support to work with the game is WIP.
-
-Requirements are the same as regular SM64, however a GCC MIPS cross compiler is also required. If you're on Debian-like Linux, you can use the ``gcc-mips-linux-gnu`` package. The toolchain that comes with my SDK is also supported.
-
-## Additional Prerequisites
-
-BinPNG (the CI texture converter) requires some python3 dependencies. Use pip to install them.
-
-``pip install pypng bitstring``
 
 ## UNFLoader support
 
@@ -207,7 +198,3 @@ Thanks to "someone2639" for this hacky-ass idea
 Q: Will this allow me to use FlashRAM/Transfer Pak/microcode swapping/Other Cool N64 Features?
 
 A: Theoretically, all yes.
-
-## Installation help
-
-Go read the original SM64 repo README.md

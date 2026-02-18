@@ -30,10 +30,11 @@
 #include "debug_box.h"
 #include "vc_ultra.h"
 #include "profiling.h"
+#include "debug.h"
 #include "emutest.h"
 
-// Emulators that the Instant Input patch should not be applied to
-#define INSTANT_INPUT_BLACKLIST (EMU_CONSOLE | EMU_WIIVC | EMU_ARES | EMU_SIMPLE64 | EMU_CEN64)
+// Emulators that the Instant Input patch should be applied to
+#define INSTANT_INPUT_WHITELIST (EMU_PARALLEL_LAUNCHER | EMU_PROJECT64 | EMU_MUPEN)
 
 // Gfx handlers
 struct SPTask *gGfxSPTask;
@@ -348,6 +349,9 @@ void create_gfx_task_structure(void) {
     gGfxSPTask->task.t.data_size = entries * sizeof(Gfx);
     gGfxSPTask->task.t.yield_data_ptr = (u64 *) gGfxSPTaskYieldBuffer;
     gGfxSPTask->task.t.yield_data_size = OS_YIELD_DATA_SIZE;
+
+    // NOTE: 'entries' is not representative of the right-side allocations coming from the GFX pool; do not use that variable here.
+    assert_args((u8*) gDisplayListHead <= gGfxPoolEnd, "GFX pool exceeded: %d command(s) over!", ((s32) gGfxPoolEnd - (s32) gDisplayListHead) / sizeof(Gfx));
 }
 
 /**
@@ -405,6 +409,31 @@ void draw_reset_bars(void) {
 }
 
 /**
+ * Check if we are emulating the framebuffer
+ * 
+ * s32 frameIndex:
+ *  0: Write to the framebuffer, wait to process displaylist
+ *  1: Check whether the framebuffer write persisted
+ */
+static void check_fbe(s32 frameIndex) {
+    // NOTE: For whatever reason, checking against pixel index 12 fails on some versions of GlideN64 (pain).
+    // So apparently, this value being set to 13 actually matters...???
+    const s32 fbePixelOffset = 13;
+    const u16 fbePixelVal = 0xFF01;
+
+    if (frameIndex == 0) {
+        // Write pixel to the framebuffer
+        gFramebuffers[sRenderingFramebuffer][fbePixelOffset] = fbePixelVal;
+    } else {
+        // Check if pixel persisted in the framebuffer after executing the display list
+        //  that clears it (but before updating sRenderingFramebuffer!)
+        if (gFramebuffers[sRenderingFramebuffer][fbePixelOffset] != fbePixelVal) {
+            gSystemCapabilities |= SUPPORTS_SOFTWARE_FRAMEBUFFER;
+        }
+    }
+}
+
+/**
  * Initial settings for the first rendered frame.
  */
 void render_init(void) {
@@ -419,12 +448,27 @@ void render_init(void) {
     init_rcp(CLEAR_ZBUFFER);
     clear_framebuffer(0);
     end_master_display_list();
-    exec_display_list(&gGfxPool->spTask);
 
-    // Skip incrementing the initial framebuffer index on emulators so that they display immediately as the Gfx task finishes
-    // VC probably emulates osViSwapBuffer accurately so instant patch breaks VC compatibility
-    // Currently, Ares and Simple64 have issues with single buffering so disable it there as well.
-    if (gEmulator & INSTANT_INPUT_BLACKLIST) {
+    // Skip the FBE check if system is console,
+    //  or had already been determined to support framebuffer emulation.
+    if (gSystemCapabilities & SUPPORTS_SOFTWARE_FRAMEBUFFER) {
+        exec_display_list(&gGfxPool->spTask);
+    } else {
+        check_fbe(0);
+
+        exec_display_list(&gGfxPool->spTask);
+
+        // Wait for frame rendering to complete to prevent race condition with FBE check
+        osRecvMesg(&gGfxVblankQueue, &gMainReceivedMesg, OS_MESG_BLOCK);
+        check_fbe(1);
+
+        // Send message back to queue to prevent locking up
+        osSendMesg(&gGfxVblankQueue, gMainReceivedMesg, OS_MESG_BLOCK);
+    }
+
+    // Skip incrementing the initial framebuffer index on certain emulators so that they display immediately as the Gfx task finishes
+    // This will break accurate emulators, so only enable on Project64, Parallel Launcher and Mupen.
+    if (!(gEmulator & INSTANT_INPUT_WHITELIST)) {
         sRenderingFramebuffer++;
     }
     gGlobalTimer++;
@@ -462,8 +506,8 @@ void display_and_vsync(void) {
 #ifndef UNLOCK_FPS
     osRecvMesg(&gGameVblankQueue, &gMainReceivedMesg, OS_MESG_BLOCK);
 #endif
-    // Skip swapping buffers on inaccurate emulators other than VC so that they display immediately as the Gfx task finishes
-    if (gEmulator & INSTANT_INPUT_BLACKLIST) {
+    // Skip swapping buffers on some inaccurate emulators so that they display immediately as the Gfx task finishes
+    if (!(gEmulator & INSTANT_INPUT_WHITELIST)) {
         if (++sRenderedFramebuffer == 3) {
             sRenderedFramebuffer = 0;
         }

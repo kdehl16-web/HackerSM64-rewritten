@@ -23,6 +23,7 @@
 #include "moving_texture.h"
 #include "object_helpers.h"
 #include "object_list_processor.h"
+#include "puppyprint.h"
 #include "save_file.h"
 #include "seq_ids.h"
 #include "sound_init.h"
@@ -529,17 +530,32 @@ s32 act_debug_free_move(struct MarioState *m) {
     set_mario_animation(m, MARIO_ANIM_A_POSE);
     vec3f_copy(pos, m->pos);
 
-    if (gPlayer1Controller->buttonDown & U_JPAD) {
-        pos[1] += 16.0f * speed;
+#ifdef USE_PROFILER
+    if (
+        !(gPlayer1Controller->buttonDown & L_TRIG)
+#ifdef PUPPYPRINT_DEBUG
+        && !sDebugMenu
+#endif // PUPPYPRINT_DEBUG
+    ) {
+#endif // USE_PROFILER
+        if (gPlayer1Controller->buttonDown & U_JPAD) {
+            pos[1] += 16.0f * speed;
+        }
+        if (gPlayer1Controller->buttonDown & D_JPAD) {
+            pos[1] -= 16.0f * speed;
+        }
+#ifdef USE_PROFILER
     }
-    if (gPlayer1Controller->buttonDown & D_JPAD) {
-        pos[1] -= 16.0f * speed;
-    }
+#endif
+
     if (gPlayer1Controller->buttonPressed & A_BUTTON) {
         vec3_zero(m->vel);
         m->forwardVel = 0.0f;
-
-        set_camera_mode(m->area->camera, m->area->camera->defMode, 1);
+        
+        if (m->area->camera->mode != m->area->camera->defMode) {
+            set_camera_mode(m->area->camera, m->area->camera->defMode, 1);
+        }
+        
         m->input &= ~INPUT_A_PRESSED;
         if (m->pos[1] <= (m->waterLevel - 100)) {
             return set_mario_action(m, ACT_WATER_IDLE, 0);
@@ -1106,8 +1122,7 @@ s32 act_exit_land_save_dialog(struct MarioState *m) {
             set_mario_animation(m, m->actionArg == 0 ? MARIO_ANIM_GENERAL_LAND
                                                      : MARIO_ANIM_LAND_FROM_SINGLE_JUMP);
             if (is_anim_past_end(m)) {
-                if (gLastCompletedCourseNum != COURSE_BITDW
-                    && gLastCompletedCourseNum != COURSE_BITFS) {
+                if (gStarModelLastCollected != MODEL_BOWSER_KEY) {
                     enable_time_stop();
                 }
 
@@ -1118,8 +1133,7 @@ s32 act_exit_land_save_dialog(struct MarioState *m) {
                 if (!(m->flags & MARIO_CAP_ON_HEAD)) {
                     m->actionState = ACT_STATE_EXIT_LAND_SAVE_DIALOG_NO_CAP; // star exit without cap
                 }
-                if (gLastCompletedCourseNum == COURSE_BITDW
-                 || gLastCompletedCourseNum == COURSE_BITFS) {
+                if (gStarModelLastCollected == MODEL_BOWSER_KEY) {
                     m->actionState = ACT_STATE_EXIT_LAND_SAVE_DIALOG_KEY; // key exit
                 }
             }
@@ -2643,7 +2657,7 @@ static s32 check_for_instant_quicksand(struct MarioState *m) {
 }
 
 s32 mario_execute_cutscene_action(struct MarioState *m) {
-    s32 cancel;
+    s32 cancel = FALSE;
 
     if (check_for_instant_quicksand(m)) {
         return TRUE;

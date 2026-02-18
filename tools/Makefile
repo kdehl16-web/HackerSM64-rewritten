@@ -7,8 +7,12 @@ CC           := gcc
 CXX          := g++
 CFLAGS       := -I. -O2 -s
 LDFLAGS      := -lm
-ALL_PROGRAMS := armips filesizer rncpack n64graphics n64graphics_ci mio0 slienc n64cksum textconv aifc_decode aiff_extract_codebook vadpcm_enc tabledesign extract_data_for_mio skyconv flips
+ALL_PROGRAMS := armips filesizer lz4tpack deflatepack rncpack n64graphics n64graphics_ci mio0 slienc n64cksum textconv aifc_decode aiff_extract_codebook vadpcm_enc tabledesign extract_data_for_mio skyconv
 LIBAUDIOFILE := audiofile/libaudiofile.a
+
+ifneq ($(shell uname), Darwin)
+  ALL_PROGRAMS += flips
+endif
 
 ifeq ($(OS),Windows_NT)
   EXT := .exe
@@ -28,6 +32,12 @@ endif
 default: all
 
 filesizer_SOURCES	:= filesizer.c
+
+lz4tpack_SOURCES	:= lz4tpack.c
+lz4tpack_CFLAGS  := -DLZ4T -flto -O3 -fwhole-program
+
+deflatepack_SOURCES	:= deflatepack.c libdeflate/deflate_compress.c libdeflate/utils.c
+deflatepack_CFLAGS  := -flto -O3 -fwhole-program
 
 rncpack_SOURCES	:= rncpack.c
 
@@ -49,7 +59,7 @@ textconv_SOURCES := textconv.c utf8.c hashtable.c
 
 aifc_decode_SOURCES := aifc_decode.c
 
-aiff_extract_codebook: $(LIBAUDIOFILE)
+aiff_extract_codebook$(EXT): $(LIBAUDIOFILE)
 aiff_extract_codebook_SOURCES := aiff_extract_codebook.c sdk-tools/tabledesign/codebook.c sdk-tools/tabledesign/estimate.c sdk-tools/tabledesign/print.c sdk-tools/tabledesign/tabledesign.c
 aiff_extract_codebook_CFLAGS  := -DEXTRACT_CODEBOOK -Iaudiofile -Wno-uninitialized
 aiff_extract_codebook_LDFLAGS := -Laudiofile -laudiofile -lstdc++
@@ -97,7 +107,7 @@ all: all-except-recomp
 clean:
 	$(RM) $(ALL_PROGRAMS)
 	$(RM) UNFLoader*
-	$(MAKE) -C audiofile clean
+	"$(MAKE)" -C audiofile clean
 
 distclean: clean
 
@@ -109,6 +119,6 @@ endef
 $(foreach p,$(BUILD_PROGRAMS),$(eval $(call COMPILE,$(p))))
 
 $(LIBAUDIOFILE):
-	@$(MAKE) -C audiofile
+	@"$(MAKE)" -C audiofile
 
 .PHONY: all all-except-recomp clean distclean default
